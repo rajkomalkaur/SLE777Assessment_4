@@ -1,0 +1,354 @@
+---
+title: "AT4"
+author: "Rajkomal Kaur"
+date: "2025-09-23"
+output: html_document
+---
+
+# Part 1: Importing files, data wrangling, mathematical operations, plots and saving code on GitHub
+# Downloading Data
+To download the file with R, the URL obtained after clicking "view raw" is used as the following command suggests. First, the file named "gene_expression.tsv" was downloaded. Similarly, the other file containing growth data was downloaded. The commands used to perform these operations are given below.
+```{r}
+library("R.utils")
+
+URL="https://raw.githubusercontent.com/ghazkha/Assessment4/refs/heads/main/gene_expression.tsv"
+download.file(URL,destfile="gene_expression.tsv")
+list.files()
+```
+```{r}
+library("R.utils")
+
+URL="https://raw.githubusercontent.com/ghazkha/Assessment4/refs/heads/main/growth_data.csv"
+download.file(URL,destfile="growth_data.csv")
+list.files()
+```
+#Reading the file
+The code below reads the uncompressed tsv file into R using the read.delim function. The (head(geneExpression)) function then provides a table of values for the first six genes. 
+```{r}
+geneExpression <- read.delim("gene_expression.tsv")
+head(geneExpression)
+```
+# Gene identifiers as row names
+In the previous table, the gene identifiers are a separate column and not the row names. the commands given below makes the gene identifiers as row names. The (head(geneExpression)) function then provides a table of values for the first six genes. 
+```{r}
+rownames(geneExpression) <- geneExpression[,1]
+geneExpression <- geneExpression[,-1]
+head(geneExpression)
+```
+# Mean Column
+Another column was created using the following code. The newly created column consisted of the mean of the other columns. Again, the (head(geneExpression)) function was used to view values for the first six genes. 
+```{r}
+geneExpression$Mean <- rowMeans(geneExpression)
+head(geneExpression)
+```
+#Highest Mean expression
+The column created in last step was sorted using the following command "highest_mean <- geneExpression[order (geneExpression$Mean, decreasing=TRUE), ]". This command sorted the mean in descending order and head command was used to view first 10 genes with highest mean expression.
+```{r}
+highest_mean <- geneExpression[order (geneExpression$Mean, decreasing=TRUE), ]
+head (highest_mean,10)
+```
+# Number of genes with mean<10
+To calculate the number of genes with the mean less than 10, the following commands were used. The logical condition (geneExpression$Mean < 10), returns TRUE for genes below 10.The sum() function counts the number of TRUE values, giving the total number of genes with mean expression less than 10.The number of genes with mean less than 10 were counted to be 35988.
+```{r}
+sum(geneExpression$Mean < 10)
+```
+# Histogram of Mean Values
+The histogram was created using a log10 transformation of mean expression values (with +1 offset to handle zeros) to effectively visualize the highly skewed distribution typical of RNA-seq data. The hist() was used to create the histogram. Elements like xlab, ylab, color and border were used to enhance visualisation and breaks decided the number of bins. The plot reveals that the most genes show low expression levels (left peak) while fewer genes exhibit high expression (right tail). 
+```{r}
+hist(log10(geneExpression$Mean + 1), main = "Distribution of Mean Gene Expression (log 10)", xlab = "Mean Expression", ylab = "Frequency", col = "blue", border = "white", breaks = 25)
+```
+# Growth data: Column names
+The code below reads the csv file into R using the read.csv function. The colnames(growthData) fuction lists the column names.The column names are "Site","TreeID","Circumf_2005_cm","Circumf_2010_cm","Circumf_2015_cm", and "Circumf_2020_cm".
+```{r}
+growthData <- read.csv("growth_data.csv")
+colnames(growthData)
+```
+# Mean and Standard Deviation (tree circumference)
+The tapply() function splits the data by site and applies the statistical functions to each group.The "na.rm = TRUE" function excludes missing values from calculation. The results are combined into a clean dataframe (summary_stats) showing growth patterns for each site.The row.names = NULL ensured clean output without duplicate identifiers. THe head (summary_stats) function was ussed to visualise results.
+```{r}
+mean_start <- tapply(growthData$Circumf_2005_cm, growthData$Site, mean, na.rm = TRUE)
+sd_start <- tapply(growthData$Circumf_2005_cm, growthData$Site, sd, na.rm = TRUE)
+mean_end <- tapply(growthData$Circumf_2020_cm, growthData$Site, mean, na.rm = TRUE)
+sd_end <- tapply(growthData$Circumf_2020_cm, growthData$Site, sd, na.rm = TRUE)
+summary_stats <- data.frame( Site = names(mean_start), Mean_start = mean_start,  SD_start = sd_start, Mean_end = mean_end, SD_end = sd_end, row.names = NULL )
+head (summary_stats)
+```
+# Box plot of tree circumference
+A combined dataframe (plot_data) was created and all circumference values were combimed as well. 'rep' function was used to create vectors by repeating values. The 'each = nrow(growth_data)' means to repeat each element this many times before moving to the next element. The boxplot was created using boxplot() code.The code generated a box plot comparing tree circumference distributions between northeast (blue) and southwest (red) sites in 2005(start) and 2020(end). It shows four boxes representing each site-time combination, allowing visualization of growth patterns and variability.
+```{r}
+plot_data <- data.frame( Circumference = c(growthData$Circumf_2005_cm, growthData$Circumf_2020_cm), Site = rep(growthData$Site, 2), Time = rep(c("2005", "2020"), each = nrow(growthData)))
+boxplot(Circumference ~ Site + Time, data = plot_data, xlab = "Site and Year",  ylab = "Circumference (cm)", main = "Tree Circumference at Start and End of Study", col = c("blue", "red"), names = c("NE Start", "SW Start", "NE End", "SW End"))
+```
+# Mean growth over last 10 years
+The growth over the last 10 years can be calculated as the difference between 2020 and 2010, then the mean per site can be computed. The datframe (growth_10yr) was created and it consisted of mean difference values. Then,  tapply() was used to calculate the mean growth for each site (Northeast vs Southwest). Finally, it was visualised and the Mean growth was 42.94 and 35.49 for northeast and southwest sites, respectively.
+```{r}
+growth_10yr <- growthData$Circumf_2020_cm - growthData$Circumf_2010_cm
+mean_growth <- tapply(growth_10yr, growthData$Site, mean, na.rm = TRUE)
+mean_growth
+```
+# t.test
+The code "t.test(growth_10yr ~ Site, data = growth_data)" was used to perform an independent two-sample t-test to determine if there is a statistically significant difference in the mean 10-year growth between the northeast and southwest sites. The p value was recorded to be 0.06229.
+```{r}
+t.test(growth_10yr ~ Site, data = growthData)
+```
+# Part 2: Examining biological sequence diversity
+#Question 1
+# Downloading the data
+The commands used to download the files are given below. The URL for particular files were obtained from ensemble. download.file() command was used to download the files and gunzip() command unzipped the files. list.files() was used to check if the files were downloaded.
+```{r}
+library("R.utils")
+
+URL="https://ftp.ensemblgenomes.ebi.ac.uk/pub/bacteria/release-62/fasta/bacteria_80_collection/acetobacter_aceti_gca_002005445/cds/Acetobacter_aceti_gca_002005445.ASM200544v1.cds.all.fa.gz"
+download.file(URL,destfile="acetobacter_cds.fa.gz")
+#gunzip("acetobacter_cds.fa.gz")
+URL="http://ftp.ensemblgenomes.org/pub/bacteria/release-53/fasta/bacteria_0_collection/escherichia_coli_str_k_12_substr_mg1655_gca_000005845/cds/Escherichia_coli_str_k_12_substr_mg1655_gca_000005845.ASM584v2.cds.all.fa.gz"
+download.file(URL,destfile="ecoli_cds.fa.gz")
+#gunzip("ecoli_cds.fa.gz")
+list.files()
+```
+# Number of coding sequences
+The seqinr library was loaded: This library provides tools for biological sequence retrieval and analysis.The code below reads the uncompressed FASTA files containing coding sequences into R using the read.fasta function from the seqinr package. Length() was used to count the coding sequences. cds_table was created.The total number of coding DNA sequences (CDS) identified in Escherichia coli K-12 was approximately 4,239, whereas Acetobacter aceti contained about 3,402 CDS.his suggests that E. coli has a slightly larger and more gene-rich genome compared to A. aceti. These differences likely reflect their ecological specialisations. E. coli is a facultative anaerobe inhabiting nutrient-rich environments, while A. aceti is an aerobic acetic acid bacterium that thrives in acidic conditions and may have streamlined its genome to support specific metabolic pathways related to ethanol oxidation and acetic acid production.
+```{r}
+library("seqinr")
+cds_ecoli <- seqinr::read.fasta("ecoli_cds.fa")
+cds_acetobacter <- seqinr::read.fasta("acetobacter_cds.fa")
+ecoli_count <- length(cds_ecoli)
+acetobacter_count <- length(cds_acetobacter)
+cds_table <- data.frame(Organism = c("Escherichia coli", "Acetobacter aceti"), CDS_Count = c(ecoli_count, acetobacter_count))
+print(cds_table)
+```
+# Question 2
+# Coding DNA
+To determine the total length of our sequence, the code below extracts the lengths of genes from the cds object by converting the first column of the summary to numeric values. It then calculates the total length of all genes by summing these values (using sum(), used while creating table). The table was created using the code below. The total coding DNA is 3978528 and 3236568 in E.coli and A.aceti, respectively.The larger coding capacity of E. coli reflects its broader metabolic versatility, whereas A. aceti has a smaller, more specialized genome adapted to its acetic acid-producing lifestyle.
+```{r}
+ecoli_len <- as.numeric(summary(cds_ecoli)[,1])
+acetobacter_len <- as.numeric(summary(cds_acetobacter)[,1])
+length_table <- data.frame(Organism = c("Escherichia coli", "Acetobacter aceti"), Total_coding_DNA = c(sum(ecoli_len), sum(acetobacter_len)))
+print(length_table)
+```
+# Question 3
+# Mean and Median length of coding sequence length
+Length of all coding sequences was calculated using sum(). The mean and median are described in the tanle below. mean() and median() functions were used. For E.coli, mean and median are 938.6 and 831, respectively. For Acetobacter aceti,  mean and median length are 951.4 and 819, respectively.Acetobacter has slightly longer genes on average (+12.8 bp).E. coli has longer typical genes (median +12 bp). Acetobacter has more very long genes (higher mean but lower median).Overall, Both have similar gene lengths, but Acetobacter has more extreme long genes.  
+```{r}
+sum(ecoli_len)
+sum(acetobacter_len)
+length_stats <- data.frame( Organism = c("Escherichia coli", "Acetobacter aceti"), Mean_Length = c(round(mean(ecoli_len), 1), round(mean(acetobacter_len), 1)), Median_Length = c(median(ecoli_len), median(acetobacter_len)))
+print(length_stats)
+```
+# Boxplot 
+The boxplot for the coding length was created using the commands below.E. coli boxplot is more compact distribution with fewer outliers, whereas, A. aceti has Wider spread and  more very long genes (right-skewed)Overall, they have similar median lengths but Acetobacter has more extreme long genes. Gene length distributions are comparable, but Acetobacter has greater variability with more exceptionally long coding sequences.
+```{r}
+boxplot(ecoli_len, acetobacter_len, names = c("E. coli", "A. aceti"), main = "Coding Sequence Length Distribution", ylab = "Sequence Length (bp)", col = c("blue", "red"))
+```
+# Question 4
+# DNA base Frequency
+The commands begin by calculating the DNA base frequencies for both organisms. The count() function with argument 1 counts the occurrence of each individual nucleotide across all coding sequences, which are first combined into single strings using unlist(). These frequency counts are then organized into a comparative data frame that displays the four DNA bases alongside their respective counts in E. coli and Acetobacter. Finally, the print() function displays this table, revealing that both organisms exhibit GC-rich genomic compositions with guanine being the most prevalent base in each.Both organisms are GC-rich (G+C > A+T). E. coli has higher absolute counts (larger genome/sample).G is most common base in both organisms.Similar relative base preferences was observed despite different genome size,
+```{r}
+DNAfreq_ecoli <- count(unlist(cds_ecoli),1)
+DNAfreq_acetobacter <- count(unlist(cds_acetobacter),1)
+DNAfreq_table <- data.frame(Base = names(DNAfreq_ecoli),
+  E_coli= DNAfreq_ecoli,
+  A_aceti = DNAfreq_acetobacter)
+print(DNAfreq_table)
+```
+# Barplot
+Commands used to create barplot are mentioned below.The bar plot compares DNA base frequencies between E. coli and Acetobacter. Both organisms show similar compositional patterns with G and C bases being more abundant than A and T bases, indicating GC-rich genomes. The relative frequencies are conserved between the two bacteria despite differences in absolute counts, reflecting common evolutionary constraints on coding sequence composition in bacterial genomes.
+```{r}
+barplot(DNAfreq_ecoli,xlab="nucleotides",ylab="frequency", main="E coli CDS composition")
+barplot(DNAfreq_acetobacter,xlab="nucleotides",ylab="frequency", main="A Aceti CDS composition")
+barplot(rbind(DNAfreq_ecoli, DNAfreq_acetobacter), beside = TRUE, col = c("blue", "red"), main = "DNA Frequency Comparison", xlab = "Nucleotides", ylab = "Frequency", legend = c("E. coli", "A. aceti"))
+```
+
+# Amino acid frequency
+These commands translate DNA coding sequences into protein sequences using the translate() function, then remove stop codons ("*") and calculate single amino acid frequencies using count() with wordsize = 1.lapply is a function in R that applies a function to each element of a list and returns the results as a list.The amino acid frequency analysis reveals that both E. coli and Acetobacter share highly similar amino acid usage patterns, with Leucine (L) being the most abundant and Tryptophan (W) the least common in both proteomes. Despite differences in absolute counts due to varying genome sizes, the relative proportions of each amino acid are conserved between the two organisms. This consistency reflects strong evolutionary constraints on protein composition across bacterial species, maintaining similar biochemical properties in their proteomes regardless of their distinct ecological niches.
+```{r}
+ecoli_prot <- lapply(cds_ecoli, translate)
+ecoli_all_aa <- unlist(ecoli_prot)
+ecoli_aa <- ecoli_all_aa[ecoli_all_aa != "*"]
+ecoli_aa_freq <- count(ecoli_aa, wordsize = 1, alphabet = ecoli_aa)
+print("E. coli Amino Acid Frequency:")
+print(ecoli_aa_freq)
+acetobacter_prot <- lapply(cds_acetobacter, translate)
+acetobacter_all_aa <- unlist(acetobacter_prot)
+acetobacter_aa <- acetobacter_all_aa[acetobacter_all_aa != "*"]
+acetobacter_aa_freq <- count(acetobacter_aa, wordsize = 1, alphabet = acetobacter_aa)
+print("Acetobacter aceti Amino Acid Frequency:")
+print(acetobacter_aa_freq)
+```
+# Barplot 
+Commands used to create barplot are given below.The bar plot comparing amino acid frequencies shows that E. coli and Acetobacter have nearly identical relative usage patterns across all 20 amino acids. Both organisms display the same rank order of amino acid abundance, with leucine (L) being most frequent and tryptophan (W) least common. The consistent proportions despite evolutionary divergence indicate strong conservation in protein compositional constraints across bacterial species.
+```{r}
+barplot(ecoli_aa_freq ,xlab="Amino acid",ylab="frequency", main="E coli Amino acid frequency")
+barplot(acetobacter_aa_freq ,xlab="Amino acid",ylab="frequency", main="A Aceti Amino acid frequency")
+barplot(rbind(ecoli_aa_freq, acetobacter_aa_freq), beside = TRUE, col = c("blue", "red"), main = "Amino Acid Frequency Comparison", xlab = "Amino Acid", ylab = "Frequency", legend = c("E. coli", "A. aceti"))
+```
+# Question 5
+# Codon Usage
+The uco() function calculates Relative Synonymous Codon Usage (RSCU) values for all codons in both organisms.unlist() function converts a list into a single vector, RSCU measures codon preference by comparing observed frequency to expected equal usage among synonymous codons. The results are compiled into a comparative table showing codon, amino acid, RSCU scores, frequencies, and efficiencies for both species.The codon usage table reveals that both E. coli and Acetobacter exhibit similar codon preference patterns with certain synonymous codons being strongly favored over others for the same amino acid. 
+```{r}
+ecoli_codon <- uco((unlist(cds_ecoli)), index = "rscu", as.data.frame = TRUE)
+acetobacter_codon <- uco((unlist(cds_acetobacter)), index = "rscu", as.data.frame = TRUE)
+codon_table <- data.frame( Codon = ecoli_codon$codon, Amino_Acid = ecoli_codon$AA, Ecoli_RSCU = ecoli_codon$RSCU, Aaceti_RSCU = acetobacter_codon$RSCU, ecoli_freq = ecoli_codon$freq, Aaceti_freq = acetobacter_codon$freq, ecoli_eff = ecoli_codon$eff, Aaceti_eff = acetobacter_codon$eff)
+print(codon_table)
+```
+#Codon usage bias
+The code below calculates codon usage bias by computing the standard deviation of RSCU values for both organisms. sd () means standard deviation. For E. coli, the bias value is 0.555, while for A. aceti it is 0.529. These results indicate that both species exhibit moderate codon usage bias, with E. coli showing slightly stronger preferential use of specific synonymous codons. The small difference suggests similar evolutionary constraints on translational efficiency, though E. coli may have more optimized codon preferences for its cellular environment
+```{r}
+ecoli_bias <- sd(ecoli_codon$RSCU, na.rm = TRUE)
+acetobacter_bias <- sd(acetobacter_codon$RSCU, na.rm = TRUE)
+print("Codon usage bias for E. coli:")
+print(ecoli_bias)
+print("Codon usage bias for A. aceti:")
+print(acetobacter_bias)
+```
+# Charts
+#Scatterplot
+ A scatterplot was generated by using the code given below, which defines different elements, comparing codon usage bias between E. coli (x-axis) and A. aceti (y-axis) using their RSCU values.The scatter plot displays a strong positive correlation between E. coli and A. aceti codon usage patterns, with points clustered closely along the diagonal. This indicates highly conserved synonymous codon preferences between both organisms, reflecting similar evolutionary pressures shaping their translational optimization despite being different bacterial species. 
+```{r}
+plot(ecoli_codon$RSCU, acetobacter_codon$RSCU, xlab = "E. coli RSCU", ylab = "A. aceti RSCU", main = "Codon Usage Comparison",
+     pch = 19, col = "blue")
+```
+# Barplot
+The initial attempt to create a bar plot with all 64 codons resulted in a crowded and unreadable visualization where patterns were obscured. To address this, a more focused approach was adopted where charts were created displaying only the top preferred codons for each organism (first 2 codes, which ordered most relevant 10 codes ). This refined visualization strategy successfully highlighted the key differences in codon usage bias between Escherichia coli and Acetobacter aceti, making the comparative analysis clear and interpretable. A combined barplot was generated for better comparision, showing near-identical RSCU values for most codons across both organisms. This conservation in codon preference patterns indicates strong evolutionary constraints on translational efficiency, suggesting both bacteria share similar tRNA abundance profiles and optimization strategies despite their taxonomic distance.
+```{r}
+top_ecoli <- head(ecoli_codon[order(ecoli_codon$RSCU, decreasing = TRUE), ], 10)
+top_acetobacter <- head(acetobacter_codon[order(acetobacter_codon$RSCU, decreasing = TRUE), ], 10)
+barplot(top_ecoli$RSCU, names.arg = top_ecoli$codon, main = "E. coli - Top 20 Preferred Codons", ylab = "RSCU", col = "blue")
+barplot(top_acetobacter$RSCU, names.arg = top_acetobacter$codon, main = "A. aceti - Top 20 Preferred Codons",ylab = "RSCU", col = "red")
+barplot (rbind(top_ecoli$RSCU, top_acetobacter$RSCU), beside = TRUE, col = c("blue", "red"), main = "Codon Usage Comparison: E. coli vs A. aceti", ylab = "RSCU Value", xlab = "Codon", legend = c("E. coli", "A. aceti"))
+```
+# Question 6
+# K-mer profiling
+K-mer is simply a short sequence string of length k. We can use k-mer analysis to identify particular sequences that are over- or under-represented in an organism.
+# 3-mer
+Firsly, I did analysis for 3-Mers. The code below was used for 3-Mer profiling of A. aceti. It extracts all protein sequences, removes stop codons (*), identifies unique amino acids, then counts all possible 3-amino-acid combinations using both absolute frequencies and relative proportions to characterize peptide motifs in the proteome.
+```{r}
+acetobacter_prots <- unlist(acetobacter_prot)
+Aaa <- unique(acetobacter_prots)
+Aaa <- Aaa[Aaa != "*"]
+acetobacter_3mer <- count(acetobacter_prots, wordsize = 3, alphabet = Aaa)
+str(acetobacter_3mer)
+acetobacter_3mer_freq <- count(acetobacter_prots, wordsize = 3, alphabet = Aaa, freq = TRUE)
+```
+# E.coli 3-mer profiling
+Similarily, the 3-mer profiling was done for E. coli, using the codes given below.
+```{r}
+ecoli_prots <- unlist(ecoli_prot)
+aa <- unique(ecoli_prots)
+aa <- aa[aa != "*"]
+ecoli_3mer <- count(ecoli_prots, wordsize = 3, alphabet = aa)
+str(ecoli_3mer)
+ecoli_3mer_freq <- count(ecoli_prots, wordsize = 3, alphabet = aa, freq = TRUE)
+```
+
+#The most over-represented 3-mers
+ The most overexpressed 3-mers were found using the following code. "acetobacter_3mer_freq" was sorted in decreasing order and first 10 lines were used and then placed in over_aceti3. 
+```{r}
+over_aceti3 <- head(sort(acetobacter_3mer_freq, decreasing = TRUE), 10)
+print("Most over-represented 3-mers in A.aceti:")
+print(over_aceti3)
+```
+#The most under-represented 3-mers
+Similarily, the most underexpressed 3-mers were found using the following code. "acetobacter_3mer_freq" was sorted in increasing order and first 10 lines were used and then placed in under_aceti3, which was later printed using print().
+```{r}
+under_aceti3 <- head(sort(acetobacter_3mer_freq, decreasing = FALSE), 10)
+print("Most under-represented 3-mers in A.aceti:")
+print(under_aceti3)
+```
+# Comparision with E. coli
+Then these specific k-mers were compared with that of E.coli. "names(over_aceti3)" function helped to find these specific kmers in "ecoli_3mer" and these were viwed and printed using head() and print() commands specifying the number of lines to be dispalyed(10). These contents were moved to files aceto3, aceto3u and ecoli3 , ecoli3u (u was used for undrepresented data files). Comaparative plots were created using the code given below , barplot(). It is evident from the barplots that there is not much difference in both the organisms. Most of the similar 3-mers are overexpressed in both organism. Same observation was made for Underexpressed 3-mers.
+```{r}
+print ("Overexpressed 3-mers")
+head(ecoli_3mer[names(over_aceti3)],10)
+print ("Underexpressed 3-mers")
+head(ecoli_3mer[names(under_aceti3)],10)
+aceto3 <- acetobacter_3mer[names(over_aceti3)]
+ecoli3 <- ecoli_3mer[names(over_aceti3)]
+barplot (rbind(aceto3,ecoli3), beside = TRUE, names.arg = names(over_aceti3), col = c("red", "blue"), main = "3-mer comparision : E.coli vs A. aceti (Overexpressed)", ylab = "count", legend= c("A. aceti", "E.coli"))
+aceto3u <- acetobacter_3mer[names(under_aceti3)]
+ecoli3u <- ecoli_3mer[names(under_aceti3)]
+barplot (rbind(aceto3u,ecoli3u),ylim = c(0, 500), beside = TRUE, names.arg = names(under_aceti3), col = c("red", "blue"), main = "3-mer comparision : E.coli vs A. aceti (underexpressed)", ylab = "count", legend= c("A. aceti", "E.coli"))
+```
+
+# 4-mers
+Same approach was used for 4-mers. Just replaced 3 by 4.
+```{r}
+acetobacter_4mer <- count(acetobacter_prots, wordsize = 4, alphabet = Aaa)
+str(acetobacter_4mer)
+acetobacter_4mer_freq <- count(acetobacter_prots, wordsize = 4, alphabet = Aaa, freq = TRUE)
+```
+# E.coli 4-mers
+```{r}
+ecoli_4mer <- count(ecoli_prots, wordsize = 4, alphabet = aa)
+str(ecoli_4mer)
+ecoli_4mer_freq <- count(ecoli_prots, wordsize = 4, alphabet = aa, freq = TRUE)
+```
+
+# The most under and over represented 4-mers
+```{r}
+over_aceti4 <- head(sort(acetobacter_4mer_freq, decreasing = TRUE), 10)
+print("Most over-represented 4-mers in A.aceti:")
+print(over_aceti4)
+under_aceti4 <- head(sort(acetobacter_4mer_freq, decreasing = FALSE), 10)
+print("Most under-represented 4-mers in A.aceti:")
+print(under_aceti4)
+```
+# Comparision with E.coli
+4-mers such as "ALAA", "AAAA", "LAA", "LLAA", "AGLA", and "ALAL" show  higher counts in A. aceti (red bars) compared to E. coli (blue bars). These motifs are clearly over-expressed in A. aceti as compared in E. coli. The  4-mers in the underexpressed plot, with E. coli (blue bars) have slightly higher counts than A. aceti (red bars), confirming they are under-represented in A. aceti relative to E. coli.
+```{r}
+print ("Overexpressed 4-mers")
+head(ecoli_4mer[names(over_aceti4)],10)
+print ("Underexpressed 4-mers")
+head(ecoli_4mer[names(under_aceti4)],10)
+aceto4 <- acetobacter_4mer[names(over_aceti4)]
+ecoli4 <- ecoli_4mer[names(over_aceti4)]
+barplot (rbind(aceto4,ecoli4), beside = TRUE, names.arg = names(over_aceti4), col = c("red", "blue"), main = "4-mer comparision : E.coli vs A. aceti (Overexpressed)", ylab = "count", legend= c("A. aceti", "E.coli"))
+aceto4u <- acetobacter_4mer[names(under_aceti4)]
+ecoli4u <- ecoli_4mer[names(under_aceti4)]
+barplot (rbind(aceto4u,ecoli4u),ylim = c(0, 500), beside = TRUE, names.arg = names(under_aceti4), col = c("red", "blue"), main = "4-mer comparision : E.coli vs A. aceti (underexpressed)", ylab = "count", legend= c("A. aceti", "E.coli"), )
+```
+
+# 5-mers
+Same approach was used for 5-mers. Just 3 was replaced by 5 in the commands.
+```{r}
+acetobacter_5mer <- count(acetobacter_prots, wordsize = 5, alphabet = Aaa)
+str(acetobacter_5mer)
+acetobacter_5mer_freq <- count(acetobacter_prots, wordsize = 5, alphabet = Aaa, freq = TRUE)
+```
+# E. coli 5-mers
+```{r}
+ecoli_5mer <- count(ecoli_prots, wordsize = 5, alphabet = aa)
+str(ecoli_5mer)
+ecoli_5mer_freq <- count(ecoli_prots, wordsize = 5, alphabet = aa, freq = TRUE)
+```
+
+# The most under and over represented 5-mers
+```{r}
+over_aceti5 <- head(sort(acetobacter_5mer_freq, decreasing = TRUE), 10)
+print("Most over-represented 5-mers in A.aceti:")
+print(over_aceti5)
+under_aceti5 <- head(sort(acetobacter_5mer_freq, decreasing = FALSE), 10)
+print("Most under-represented 5-mers in A.aceti:")
+print(under_aceti5)
+```
+# Comparision with E.coli
+5-mers such as "GKSTL", "VSSGG", "AAALA", "ALAAG", and "LAALR" show  higher counts in A. aceti (red bars) compared to E. coli (blue bars). These motifs are clearly over-expressed in A. aceti but not in E. coli, with counts ranging up to 50 in A. aceti versus near-zero levels in E. coli. 5-mers like "AACC", "AAACF", "AAACM", "AAACP", and "AAACR"  ,with E. coli (blue bars) having similar compared to A. aceti (red bars), confirming they are under-represented in A. aceti relative to E. coli.
+```{r}
+print ("Overexpressed 5-mers")
+head(ecoli_5mer[names(over_aceti5)],10)
+print ("Underexpressed 5-mers")
+head(ecoli_5mer[names(under_aceti5)],10)
+aceto5 <- acetobacter_5mer[names(over_aceti5)]
+ecoli5 <- ecoli_5mer[names(over_aceti5)]
+barplot (rbind(aceto5,ecoli5), beside = TRUE, names.arg = names(over_aceti5), col = c("red", "blue"), main = "5-mer comparision : E.coli vs A. aceti (Overexpressed)", ylab = "count", legend= c("A. aceti", "E.coli"))
+aceto5u <- acetobacter_5mer[names(under_aceti5)]
+ecoli5u <- ecoli_5mer[names(under_aceti5)]
+barplot (rbind(aceto5u,ecoli5u),ylim = c(0, 500), beside = TRUE, names.arg = names(under_aceti5), col = c("red", "blue"), main = "5-mer comparision : E.coli vs A. aceti (underexpressed)", ylab = "count", legend= c("A. aceti", "E. coli"))
+```
+#Conclusion
+This analysis integrated computational biology approaches to analyze both quantitative experimental data (Part 1) and genomic sequence features (Part 2). In Part 1, RNA-seq and tree growth datasets were processed using R for data wrangling, statistical analysis, and visualization — building skills in reproducible research, version control via GitHub, and interpretation of biological trends in gene expression and growth patterns.In Part 2, comparative genomics of Acetobacter aceti and Escherichia coli revealed conserved molecular patterns in GC content, amino acid usage, and codon bias, while also identifying species-specific k-mer signatures likely tied to ecological adaptation.
+Together, these analyses demonstrate how bioinformatics tools can uncover meaningful biological insights — from differential gene expression and environmental effects on phenotype to evolutionary signals embedded in genomic sequences — while reinforcing essential practices in coding, documentation, and open science.
+```{r}
+sessionInfo()
+```
+
